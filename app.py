@@ -37,7 +37,7 @@ def init_db():
 
 def create_app():
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'nehost_open_system_key'
+    app.config['SECRET_KEY'] = 'sakat_hosting_secret_key'
     app.config['BASE_STORAGE'] = os.path.join(os.getcwd(), 'storage/instances')
     app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static/uploads')
     
@@ -64,10 +64,10 @@ def create_app():
         parts.append(f"{minutes}m")
         return " ".join(parts)
     
-    # --- DIRECT REDIRECT TO DASHBOARD ---
+    # --- DIRECT REDIRECT TO DASHBOARD WITH BRAND SAKAT ---
     @app.route('/')
     def home():
-        return render_template('web/dashboard.html', user={'fname': 'Guest User', 'role': 'free'})
+        return render_template('web/dashboard.html', user={'fname': 'SAKAT User', 'role': 'free'})
 
     # Redirect auth pages directly to dashboard
     @app.route('/login')
@@ -79,20 +79,17 @@ def create_app():
 
     @app.route('/dashboard')
     def dashboard():
-        return render_template('web/dashboard.html', user={'fname': 'Guest User', 'role': 'free'})
+        return render_template('web/dashboard.html', user={'fname': 'SAKAT User', 'role': 'free'})
 
     @app.route('/api/announcement')
     def get_announcement():
         return jsonify({'show_popup': 0})
 
-    # Fixed Safe Path Helper Function
+    # Robust Path Resolution
     def safe_join(base, *paths):
-        # Filter out empty paths or non-string values
-        clean_paths = [p for p in paths if p and isinstance(p, str)]
+        clean_paths = [str(p).strip('/') for p in paths if p]
         final_path = os.path.abspath(os.path.join(base, *clean_paths))
         base_path = os.path.abspath(base)
-        
-        # Ensure security against Directory Traversal attacks
         if not final_path.startswith(base_path):
             return None
         return final_path
@@ -122,15 +119,15 @@ def create_app():
             pass
         return jsonify(items)
 
+    # Simplified File Content Fetch Route
     @app.route('/files/content/<folder>/<path:name>', methods=['GET', 'POST'])
     @app.route('/files/content/<folder>/', methods=['GET', 'POST'])
+    @app.route('/files/content/<folder>', methods=['GET', 'POST'])
     def fcontent(folder, name=""):
-        # Handle sub_path from request query or body
-        sub_path = request.args.get('path', '') or (request.json.get('path', '') if request.is_json else '')
-        sub_path = sub_path.strip('/')
-        
-        if not name and request.is_json:
-            name = request.json.get('name', '')
+        d = request.json or {}
+        sub_path = request.args.get('path', '') or d.get('path', '')
+        if not name:
+            name = d.get('name', '') or request.args.get('name', '')
 
         full_path = safe_join(app.config['BASE_STORAGE'], folder, sub_path, name)
         
@@ -146,13 +143,13 @@ def create_app():
         except Exception as e: 
             return jsonify({'content': f'Error reading file: {str(e)}'}), 500
 
+    # File Save Route
     @app.route('/files/save/<folder>/<path:name>', methods=['POST'])
     @app.route('/files/save/<folder>/', methods=['POST'])
+    @app.route('/files/save/<folder>', methods=['POST'])
     def fsave(folder, name=""):
         d = request.json or {}
         sub_path = request.args.get('path', '') or d.get('path', '')
-        sub_path = sub_path.strip('/')
-        
         if not name:
             name = d.get('name', '')
 
@@ -360,14 +357,13 @@ def create_app():
             srv = db.execute('SELECT startup FROM servers WHERE folder=?', (folder,)).fetchone()
             startup_file = srv['startup'] if srv and srv['startup'] else 'main.py'
             
-            # Create startup file if missing
             st_path = os.path.join(path, startup_file)
             if not os.path.exists(st_path):
                 with open(st_path, 'w') as f:
-                    f.write('# Startup File\nprint("Started...")\n')
+                    f.write('# SAKAT Hosting Startup File\nprint("SAKAT Server Started...")\n')
 
             f_log = open(log_file_path, 'a')
-            f_log.write(f"\n[{now}] 🚀 Instance {act.upper()}ED Successfully\n")
+            f_log.write(f"\n[{now}] 🚀 SAKAT Instance {act.upper()}ED Successfully\n")
             proc = subprocess.Popen(['python3', startup_file], cwd=path, stdout=f_log, stderr=f_log, preexec_fn=os.setsid)
             running_procs[folder], start_times[folder] = proc, time.time()
             db.execute('UPDATE servers SET pid=? WHERE folder=?', (proc.pid, folder))
@@ -385,7 +381,7 @@ def create_app():
             db.execute('UPDATE servers SET pid=NULL WHERE folder=?', (folder,))
             db.commit()
             db.close()
-            with open(log_file_path, 'a') as f: f.write(f"\n[{now}] 🛑 Instance STOPPED\n")
+            with open(log_file_path, 'a') as f: f.write(f"\n[{now}] 🛑 SAKAT Instance STOPPED\n")
             return jsonify({'status': 'stopped'})
             
         db.close()
@@ -396,7 +392,7 @@ def create_app():
         path = safe_join(app.config['BASE_STORAGE'], folder, 'console.log')
         if path and os.path.exists(path):
             with open(path, 'r') as f: return jsonify({'log': f.read()[-5000:]})
-        return jsonify({'log': 'Waiting for logs...'})
+        return jsonify({'log': 'SAKAT Console: Waiting for logs...'})
 
     @app.route('/server/set-startup/<folder>', methods=['POST'])
     def set_startup(folder):
@@ -462,11 +458,10 @@ def create_app():
         inst_path = safe_join(app.config['BASE_STORAGE'], folder)
         os.makedirs(inst_path, exist_ok=True)
         
-        # Create default startup main.py file
         main_py = os.path.join(inst_path, 'main.py')
         if not os.path.exists(main_py):
             with open(main_py, 'w') as f:
-                f.write('# Auto-generated main.py\nprint("Server started successfully!")\n')
+                f.write('# Auto-generated main.py for SAKAT\nprint("SAKAT Server started successfully!")\n')
                 
         return jsonify({'status': 'success'})
 
